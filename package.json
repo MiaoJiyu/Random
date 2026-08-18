@@ -1,0 +1,50 @@
+{
+  "name": "random-picker",
+  "version": "2.0.0",
+  "description": "加权随机数生成器 - Node.js 全栈版（网页 + Electron 桌面端），含转盘模式、CSV/Excel 导入、历史统计图表与云 MySQL 同步",
+  "main": "electron/main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "node scripts/copy-vendor.js",
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "electron": "electron .",
+    "build:win": "electron-builder --win --x64",
+    "gen:template": "node scripts/gen-template.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "echarts": "^5.5.1",
+    "express": "^4.21.0",
+    "mysql2": "^3.11.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.randompicker.app",
+    "productName": "加权随机数生成器",
+    "files": [
+      "server/**/*",
+      "public/**/*",
+      "electron/**/*",
+      "package.json",
+      ".env"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
