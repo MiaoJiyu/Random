@@ -1,0 +1,25 @@
+# systemd 服务单元：开机自启、后台运行、崩溃自动重启。
+# 安装步骤（把下面路径改成你的实际项目路径，例如 /home/yourname/random）：
+#   sudo cp random-picker.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now random-picker
+# 查看状态： sudo systemctl status random-picker
+# 查看日志： sudo journalctl -u random-picker -f
+
+[Unit]
+Description=Random Picker Web (加权随机数生成器)
+After=network.target
+
+[Service]
+Type=simple
+# 改成你的项目绝对路径
+WorkingDirectory=/opt/random
+ExecStart=/usr/bin/node /opt/random/server/index.js
+Environment=PORT=3000
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:/opt/random/logs/server.log
+StandardError=append:/opt/random/logs/server.log
+
+[Install]
+WantedBy=multi-user.target
