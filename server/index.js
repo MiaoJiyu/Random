@@ -2,6 +2,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
+const { spawn } = require('child_process');
 const express = require('express');
 const logger = require('./logger');
 const { ensureSchema, healthCheck } = require('./db');
@@ -55,6 +56,33 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
+// 监听地址：默认绑定全部网卡（0.0.0.0），便于局域网内其他设备访问；
+// 如需仅本机可设 HOST=127.0.0.1。
+const HOST = process.env.HOST || '0.0.0.0';
+
+/**
+ * 跨平台打开默认浏览器访问指定 URL（忽略错误，如无桌面环境）。
+ */
+function openBrowser(url) {
+  let cmd, args;
+  if (process.platform === 'win32') {
+    cmd = 'cmd';
+    args = ['/c', 'start', '', url];
+  } else if (process.platform === 'darwin') {
+    cmd = 'open';
+    args = [url];
+  } else {
+    cmd = 'xdg-open';
+    args = [url];
+  }
+  try {
+    const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+    child.on('error', () => {}); // 无桌面环境等情况下静默忽略
+    child.unref();
+  } catch {
+    /* noop */
+  }
+}
 
 /**
  * 启动服务。导出 listen 以便 Electron 主进程复用。失败时只影响云端功能，本地功能仍可用。
@@ -68,8 +96,18 @@ async function start() {
   }
 
   return new Promise((resolve) => {
-    const server = app.listen(PORT, () => {
-      logger.info('服务已启动：http://localhost:%d', PORT);
+    const server = app.listen(PORT, HOST, () => {
+      const addr = server.address();
+      const port = addr && addr.port ? addr.port : PORT;
+      // 本地浏览器用 localhost 访问即可（即使绑定 0.0.0.0 也通）
+      const openUrl = `http://localhost:${port}`;
+      logger.info('服务已启动：%s （监听 %s:%d）', openUrl, HOST, port);
+
+      // 仅网页版（直接 node 启动）自动拉起浏览器；Electron 自带窗口，不重复打开。
+      // 无桌面/服务环境可用 OPEN_BROWSER=false 关闭。
+      if (require.main === module && process.env.OPEN_BROWSER !== 'false') {
+        openBrowser(openUrl);
+      }
       resolve(server);
     });
     server.on('error', (err) => {

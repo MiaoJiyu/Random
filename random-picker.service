@@ -16,6 +16,8 @@ Type=simple
 WorkingDirectory=/opt/random
 ExecStart=/usr/bin/node /opt/random/server/index.js
 Environment=PORT=3000
+Environment=HOST=0.0.0.0
+Environment=OPEN_BROWSER=false
 Restart=on-failure
 RestartSec=3
 StandardOutput=append:/opt/random/logs/server.log

@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * 统一日志模块
- * 使用本地时间戳，不打印密码与完整配置内容，避免敏感信息泄露。
+ * 统一日志模块：支持 console 风格占位符（%s/%d/%j），不打印密码等敏感信息。
  */
+const util = require('util');
 
 function ts() {
   const d = new Date();
@@ -12,19 +12,18 @@ function ts() {
 }
 
 function fmt(args) {
-  return args
-    .map((a) => {
-      if (a instanceof Error) return a.stack || a.message;
-      if (typeof a === 'object') {
-        try {
-          return JSON.stringify(a, (k, v) => (k.toLowerCase().includes('password') ? '***' : v));
-        } catch {
-          return String(a);
-        }
+  // 对含 password 字段的对象做脱敏，避免日志泄露凭据
+  const safe = args.map((a) => {
+    if (a && typeof a === 'object' && !Array.isArray(a) && !(a instanceof Error)) {
+      const clone = {};
+      for (const k of Object.keys(a)) {
+        clone[k] = /password/i.test(k) ? '***' : a[k];
       }
-      return String(a);
-    })
-    .join(' ');
+      return clone;
+    }
+    return a;
+  });
+  return util.format(...safe);
 }
 
 const logger = {
