@@ -339,7 +339,7 @@ const DataPanel = (function () {
     App.state.mode = active.data.mode === 'number' ? 'number' : 'wheel';
     App.state.activeConfigId = active.id;
     App.saveLocal();
-    App.notifyDataChanged();
+    App.notifyDataChanged(true);
     App.notifyConfigsChanged();
     App.toast('已从云端拉取激活配置', 'success');
   }
@@ -349,21 +349,37 @@ const DataPanel = (function () {
     const name = (byId('inNewName').value || '').trim();
     if (!name) { App.toast('请输入配置名称', 'error'); return; }
     try {
-      await API.createConfig({ name, data: { mode: App.state.mode, items: App.state.items } });
+      // 新建配置初始为空（不复制当前数据）
+      const r = await API.createConfig({ name, data: { mode: App.state.mode, items: [] } });
       byId('inNewName').value = '';
+      const newId = r && r.data && r.data.id;
       App.state.cloudConfigs = await API.listConfigs();
-      App.notifyConfigsChanged();
-      App.toast('已新建云端配置：' + name, 'success');
+      if (newId && App.state.activeConfigId != null) {
+        // 已有激活配置：当前数据已先行保存到原配置，此处自动切换并拉取新建的空配置
+        await activate(newId);
+        App.toast('已新建空配置并切换：' + name, 'success');
+      } else {
+        App.notifyConfigsChanged();
+        App.toast('已新建云端空配置：' + name, 'success');
+      }
     } catch (e) { App.toast('新建失败：' + e.message, 'error'); }
   }
 
   async function activate(id) {
     try {
+      await App.pushCurrentConfig(); // 先把当前编辑保存到原配置，避免丢失
       await API.activateConfig(id);
-      App.state.activeConfigId = id;
+      const active = await API.getActiveConfig();
+      if (active && active.data) {
+        App.state.items = RandomUtil.sanitizeItems(active.data.items);
+        App.state.mode = active.data.mode === 'number' ? 'number' : 'wheel';
+        App.state.activeConfigId = active.id;
+      }
       App.state.cloudConfigs = await API.listConfigs();
+      App.saveLocal();
+      App.notifyDataChanged(true);
       App.notifyConfigsChanged();
-      App.toast('已切换激活配置', 'success');
+      App.toast('已切换并拉取激活配置', 'success');
     } catch (e) { App.toast('激活失败：' + e.message, 'error'); }
   }
 

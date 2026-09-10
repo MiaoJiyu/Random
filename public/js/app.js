@@ -34,6 +34,8 @@ const App = (function () {
 
   // ---------- Toast ----------
   let toastTimer = null;
+  let autoPushTimer = null;
+  let pendingPush = false;
   function toast(msg, type = '') {
     const el = document.getElementById('toast');
     el.textContent = msg;
@@ -79,13 +81,37 @@ const App = (function () {
   }
 
   // ---------- 状态变更通知 ----------
-  function notifyDataChanged() {
+  function notifyDataChanged(skipAutoPush) {
     state.items = RandomUtil.sanitizeItems(state.items);
     saveLocal();
     if (DataPanel) DataPanel.render();
     if (DrawView) DrawView.render();
     updateNowConfig();
     updateDataStats();
+    if (!skipAutoPush) autoPushToCloud();
+  }
+
+  // 本地数据变更后，防抖自动上传到「当前激活配置」（静默，失败不提示，手动按钮可重试）
+  function autoPushToCloud() {
+    if (!state.cloudOnline || state.activeConfigId == null) return;
+    pendingPush = true;
+    clearTimeout(autoPushTimer);
+    autoPushTimer = setTimeout(() => { autoPushTimer = null; doPushConfig(); }, 400);
+  }
+
+  function doPushConfig() {
+    pendingPush = false;
+    const id = state.activeConfigId;
+    if (!state.cloudOnline || id == null) return Promise.resolve();
+    return API.updateConfig(id, { data: { mode: state.mode, items: state.items } })
+      .catch(() => { /* 静默：手动「保存到云端」仍可重试 */ });
+  }
+
+  /** 立即把当前本地数据上传到当前激活配置（切换配置前调用，避免把改动覆盖到错误配置） */
+  async function pushCurrentConfig() {
+    if (autoPushTimer) { clearTimeout(autoPushTimer); autoPushTimer = null; }
+    pendingPush = false;
+    await doPushConfig();
   }
   function notifyConfigsChanged() {
     if (DataPanel) DataPanel.renderCloudConfigs();
@@ -179,7 +205,7 @@ const App = (function () {
       ]);
     }
 
-    notifyDataChanged();
+    notifyDataChanged(true);
     notifyConfigsChanged();
     updateNowConfig();
     // 初始模式按钮高亮
@@ -236,7 +262,7 @@ const App = (function () {
 
   return {
     state, toast, showModal, promptWeight, confirmDialog,
-    saveLocal, notifyDataChanged, notifyConfigsChanged,
+    saveLocal, notifyDataChanged, notifyConfigsChanged, pushCurrentConfig,
     switchView, refreshCloudStatus, updateNowConfig, init,
   };
 })();

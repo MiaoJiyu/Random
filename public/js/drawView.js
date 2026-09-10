@@ -26,6 +26,7 @@ const DrawView = (function () {
     configSelect = document.getElementById('configSelect');
     btnUseCloud = document.getElementById('btnUseCloud');
     btnPushLocal = document.getElementById('btnPushLocal');
+    configSelect.onchange = useCloud;
 
     btnDraw.onclick = startDraw;
     btnStop.onclick = stopDraw;
@@ -63,6 +64,8 @@ const DrawView = (function () {
       opt.textContent = (c.is_active ? '★ ' : '') + c.name;
       configSelect.appendChild(opt);
     });
+    // 重建后保持当前已加载（激活）配置的选中状态，避免跳回默认项
+    if (App.state.activeConfigId != null) configSelect.value = String(App.state.activeConfigId);
   }
 
   function startDraw() {
@@ -132,12 +135,13 @@ const DrawView = (function () {
     const id = parseInt(configSelect.value, 10);
     const cfg = App.state.cloudConfigs.find((c) => c.id === id);
     if (!cfg) { App.toast('请选择云端配置', 'error'); return; }
+    await App.pushCurrentConfig(); // 切换前先把当前编辑保存到原配置
     const data = cfg.data || {};
     App.state.items = RandomUtil.sanitizeItems(data.items);
     App.state.mode = data.mode === 'number' ? 'number' : 'wheel';
     App.state.activeConfigId = cfg.id;
     App.saveLocal();
-    App.notifyDataChanged();
+    App.notifyDataChanged(true);
     App.notifyConfigsChanged();
     App.toast('已从云端拉取：' + cfg.name, 'success');
   }
