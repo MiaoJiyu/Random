@@ -8,6 +8,11 @@
 const DataPanel = (function () {
   let tbody, selInfo, checkAll;
   const selected = new Set();
+  let unlocked = false;
+  let pwdEnabled = false;
+  let pwdMode = 'set';
+  let lockOverlay, pwdInput, btnUnlock, footerStatus, btnPwd, btnRelock;
+  let pwdModal, pwdTitle, pwdOldRow, pwdOld, pwdNew, pwdNew2, pwdOk, pwdCancel;
 
   function init() {
     tbody = document.getElementById('dataTbody');
@@ -44,6 +49,31 @@ const DataPanel = (function () {
       else selected.clear();
       render();
     };
+
+    // 密码保护 UI
+    lockOverlay = byId('dataLockOverlay');
+    pwdInput = byId('pwdInput');
+    btnUnlock = byId('btnUnlock');
+    footerStatus = byId('pwdFooterStatus');
+    btnPwd = byId('btnPwd');
+    btnRelock = byId('btnRelock');
+    pwdModal = byId('pwdModal');
+    pwdTitle = byId('pwdTitle');
+    pwdOldRow = byId('pwdOldRow');
+    pwdOld = byId('pwdOld');
+    pwdNew = byId('pwdNew');
+    pwdNew2 = byId('pwdNew2');
+    pwdOk = byId('pwdOk');
+    pwdCancel = byId('pwdCancel');
+
+    btnUnlock.onclick = unlock;
+    pwdInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') unlock(); });
+    btnPwd.onclick = openPwdModal;
+    btnRelock.onclick = () => { unlocked = false; applyLockUI(); };
+    pwdCancel.onclick = () => pwdModal.classList.add('hidden');
+    pwdOk.onclick = submitPwd;
+
+    refreshLockState();
   }
 
   function byId(id) { return document.getElementById(id); }
@@ -373,5 +403,73 @@ const DataPanel = (function () {
     return String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
 
-  return { init, render, renderCloudConfigs };
+  async function refreshLockState() {
+    try {
+      const s = await API.getSettings();
+      pwdEnabled = !!s.hasPassword;
+    } catch { pwdEnabled = false; }
+    applyLockUI();
+  }
+
+  function applyLockUI() {
+    const locked = pwdEnabled && !unlocked;
+    if (lockOverlay) lockOverlay.classList.toggle('hidden', !locked);
+    if (footerStatus) footerStatus.textContent = !pwdEnabled ? '未设置密码保护' : (unlocked ? '已解锁' : '已锁定');
+    if (btnPwd) {
+      btnPwd.textContent = pwdEnabled ? '修改密码' : '设置密码';
+      btnPwd.classList.toggle('hidden', locked);
+    }
+    if (btnRelock) btnRelock.classList.toggle('hidden', !(pwdEnabled && unlocked));
+  }
+
+  async function unlock() {
+    const p = pwdInput.value || '';
+    if (!p) { App.toast('请输入密码', 'error'); return; }
+    try {
+      const r = await API.verifyPassword(p);
+      if (r.code === 0 && r.data && r.data.ok) {
+        unlocked = true;
+        pwdInput.value = '';
+        App.toast('已解锁', 'success');
+        applyLockUI();
+      } else {
+        App.toast('密码错误', 'error');
+      }
+    } catch (e) { App.toast('验证失败：' + e.message, 'error'); }
+  }
+
+  function openPwdModal() {
+    pwdMode = pwdEnabled ? 'change' : 'set';
+    pwdTitle.textContent = pwdEnabled ? '修改密码' : '设置密码';
+    pwdOldRow.style.display = (pwdMode === 'change') ? '' : 'none';
+    pwdOld.value = ''; pwdNew.value = ''; pwdNew2.value = '';
+    pwdModal.classList.remove('hidden');
+    setTimeout(() => { (pwdMode === 'change' ? pwdOld : pwdNew).focus(); }, 50);
+  }
+
+  async function submitPwd() {
+    const newP = pwdNew.value || '';
+    const newP2 = pwdNew2.value || '';
+    if (newP.length < 4) { App.toast('密码至少 4 位', 'error'); return; }
+    if (newP !== newP2) { App.toast('两次输入不一致', 'error'); return; }
+    const payload = { oldPassword: (pwdMode === 'change') ? (pwdOld.value || '') : '', newPassword: newP };
+    try {
+      const r = await API.setPassword(payload);
+      if (r.code === 0) {
+        pwdEnabled = true;
+        unlocked = true;
+        pwdModal.classList.add('hidden');
+        App.toast(pwdMode === 'change' ? '密码已修改' : '密码已设置', 'success');
+        applyLockUI();
+      } else {
+        App.toast(r.message || '操作失败', 'error');
+      }
+    } catch (e) { App.toast('操作失败：' + e.message, 'error'); }
+  }
+
+  function onShow() {
+    refreshLockState();
+  }
+
+  return { init, render, renderCloudConfigs, onShow };
 })();

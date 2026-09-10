@@ -9,6 +9,7 @@ const { ensureSchema, healthCheck } = require('./db');
 const configsRouter = require('./routes/configs');
 const historyModule = require('./routes/history');
 const historyRouter = historyModule.router;
+const settingsRouter = require('./routes/settings');
 
 const app = express();
 
@@ -22,7 +23,20 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // API 路由
 app.use('/api/config', configsRouter);
 app.use('/api/history', historyRouter);
+app.use('/api/settings', settingsRouter);
 app.get('/api/stats', historyModule.statsHandler);
+
+/**
+ * GET /api/version  应用自身版本号（用于前端判断是否需要自动更新）
+ */
+app.get('/api/version', (req, res) => {
+  try {
+    const v = require('../package.json').version;
+    res.json({ code: 0, data: { version: v }, message: 'ok' });
+  } catch (e) {
+    res.status(500).json({ code: 1, data: null, message: e.message });
+  }
+});
 
 /**
  * GET /api/health  健康检查（含数据库连通状态，供前端降级提示）

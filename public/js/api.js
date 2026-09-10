@@ -126,5 +126,25 @@ const API = (function () {
     downloadTemplate() {
       window.location.href = '/api/template.csv';
     },
+
+    async getSettings() {
+      const r = await request('GET', '/api/settings');
+      return r.code === 0 ? r.data : { version: '', downloadUrl: '', hasPassword: false };
+    },
+
+    async getVersion() {
+      const r = await request('GET', '/api/version');
+      return r.code === 0 ? r.data : { version: '' };
+    },
+
+    async verifyPassword(password) {
+      const r = await request('POST', '/api/settings/password/verify', { password });
+      return r;
+    },
+
+    async setPassword(payload) {
+      const r = await request('PUT', '/api/settings/password', payload);
+      return r;
+    },
   };
 })();

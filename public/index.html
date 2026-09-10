@@ -201,6 +201,27 @@
           </div>
         </aside>
       </div>
+
+      <!-- 密码保护：锁定遮罩（仅数据页，抽选/历史不受影响） -->
+      <div class="data-lock-overlay hidden" id="dataLockOverlay">
+        <div class="lock-card glass">
+          <div class="lock-icon">🔒</div>
+          <div class="lock-title">数据已锁定</div>
+          <div class="inline">
+            <input type="password" id="pwdInput" placeholder="请输入密码" />
+            <button class="btn btn-primary btn-sm" id="btnUnlock">解锁</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 数据页底部：密码管理（解锁后可修改密码） -->
+      <div class="data-pwd-footer glass" id="dataPwdFooter">
+        <span class="pwd-status" id="pwdFooterStatus">未设置密码保护</span>
+        <div class="footer-actions">
+          <button class="btn btn-ghost btn-sm" id="btnRelock">重新锁定</button>
+          <button class="btn btn-primary btn-sm" id="btnPwd">设置密码</button>
+        </div>
+      </div>
     </section>
 
     <!-- 统计视图 -->
@@ -241,6 +262,31 @@
       <div class="modal-actions">
         <button class="btn btn-ghost btn-sm" id="modalCancel">取消</button>
         <button class="btn btn-primary btn-sm" id="modalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置/修改密码模态框 -->
+  <div class="modal-mask hidden" id="pwdModal">
+    <div class="modal glass">
+      <div class="modal-title" id="pwdTitle">设置密码</div>
+      <div class="modal-body">
+        <div class="form-row" id="pwdOldRow">
+          <label>当前密码</label>
+          <input type="password" id="pwdOld" />
+        </div>
+        <div class="form-row">
+          <label>新密码</label>
+          <input type="password" id="pwdNew" />
+        </div>
+        <div class="form-row">
+          <label>确认新密码</label>
+          <input type="password" id="pwdNew2" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" id="pwdCancel">取消</button>
+        <button class="btn btn-primary btn-sm" id="pwdOk">确定</button>
       </div>
     </div>
   </div>

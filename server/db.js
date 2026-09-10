@@ -60,7 +60,21 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
-  logger.info('数据库表结构已就绪（configs / history）');
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS settings (
+      k VARCHAR(64) NOT NULL PRIMARY KEY,
+      v TEXT,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  // 初始化设置项（仅首次写入，已存在则跳过）
+  const pkgVersion = require('../package.json').version;
+  await p.query('INSERT IGNORE INTO settings (k, v) VALUES (?, ?)', ['version', pkgVersion]);
+  await p.query('INSERT IGNORE INTO settings (k, v) VALUES (?, ?)', ['downloadUrl', '']);
+  await p.query('INSERT IGNORE INTO settings (k, v) VALUES (?, ?)', ['password', '']);
+
+  logger.info('数据库表结构已就绪（configs / history / settings）');
   await ensureDefaultConfig();
 }
 

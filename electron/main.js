@@ -1,8 +1,10 @@
 'use strict';
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
+const https = require('https');
 
 /** 获取一个空闲端口，避免与已占用端口冲突。 */
 function getFreePort() {
@@ -47,6 +49,36 @@ async function createWindow() {
     mainWindow = null;
   });
 }
+
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const proto = url.startsWith('https') ? https : http;
+    const req = proto.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const next = new URL(res.headers.location, url).toString();
+        return downloadFile(next, dest).then(resolve, reject);
+      }
+      if (res.statusCode !== 200) { reject(new Error('HTTP ' + res.statusCode)); return; }
+      const file = fs.createWriteStream(dest);
+      res.pipe(file);
+      file.on('finish', () => file.close(() => resolve(dest)));
+    });
+    req.on('error', reject);
+  });
+}
+
+ipcMain.handle('get-app-version', () => app.getVersion());
+
+// 下载更新安装包并启动安装（随后退出当前实例以便覆盖）
+ipcMain.handle('download-and-install', async (event, url) => {
+  const u = new URL(url);
+  const ext = path.extname(u.pathname) || '.exe';
+  const dest = path.join(app.getPath('temp'), 'random-update' + ext);
+  await downloadFile(url, dest);
+  shell.openPath(dest);
+  setTimeout(() => { try { app.quit(); } catch { /* noop */ } }, 1500);
+  return { ok: true, path: dest };
+});
 
 app.whenReady().then(createWindow);
 

@@ -120,6 +120,7 @@ const App = (function () {
       v.classList.toggle('active', v.id === 'view-' + view);
     });
     if (view === 'stats' && StatsView) StatsView.onShow();
+    if (view === 'data' && DataPanel) DataPanel.onShow();
   }
 
   // ---------- 云端状态 ----------
@@ -185,7 +186,52 @@ const App = (function () {
     document.querySelectorAll('.mode-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.mode === state.mode);
     });
+    // 后台检测更新（不阻塞抽选）
+    checkForUpdate();
     switchView('draw');
+  }
+
+  async function checkForUpdate() {
+    try {
+      const settings = await API.getSettings();
+      const latest = settings.version || '';
+      const downloadUrl = settings.downloadUrl || '';
+      if (!latest || !downloadUrl) return;
+      let current = '';
+      try {
+        if (window.electronAPI && window.electronAPI.getAppVersion) {
+          current = await window.electronAPI.getAppVersion();
+        } else {
+          const v = await API.getVersion();
+          current = v.version || '';
+        }
+      } catch { return; }
+      if (current && latest !== current) {
+        App.toast('发现新版本 ' + latest + '，正在后台更新…', 'success');
+        triggerUpdate(downloadUrl);
+      }
+    } catch { /* 忽略，不影响使用 */ }
+  }
+
+  function triggerUpdate(url) {
+    try {
+      if (window.electronAPI && window.electronAPI.downloadAndInstall) {
+        window.electronAPI.downloadAndInstall(url).catch((e) =>
+          App.toast('自动更新失败：' + (e && e.message || e), 'error'));
+        return;
+      }
+      // 网页版：触发浏览器下载（无法自动安装，提示用户运行）
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      App.toast('新版本已下载，请运行安装', 'success');
+    } catch (e) {
+      App.toast('更新失败：' + (e && e.message || e), 'error');
+    }
   }
 
   return {
