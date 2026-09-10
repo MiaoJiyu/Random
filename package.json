@@ -1,6 +1,6 @@
 {
   "name": "random-picker",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "加权随机数生成器 - Node.js 全栈版（网页 + Electron 桌面端），含转盘模式、CSV/Excel 导入、历史统计图表与云 MySQL 同步",
   "main": "electron/main.js",
   "author": "",
